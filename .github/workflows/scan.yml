@@ -24,7 +24,7 @@ jobs:
     outputs:
       matrix: ${{ steps.list.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: list
         run: |
           set -euo pipefail
@@ -52,7 +52,7 @@ jobs:
       matrix:
         container: ${{ fromJSON(needs.list.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v4 # for .mise.toml (pinned Trivy version)
+      - uses: actions/checkout@v7 # for .mise.toml (pinned Trivy version)
       - uses: jdx/mise-action@v4
 
       # Auth so Trivy can pull the (possibly private) image straight from GHCR.

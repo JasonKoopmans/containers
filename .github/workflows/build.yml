@@ -48,7 +48,7 @@ jobs:
       matrix: ${{ steps.detect.outputs.matrix }}
       any: ${{ steps.detect.outputs.any }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history so we can diff against the previous commit
 
@@ -144,7 +144,7 @@ jobs:
       matrix:
         container: ${{ fromJSON(needs.detect.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install scan tools (Trivy, hadolint)
         uses: jdx/mise-action@v4
