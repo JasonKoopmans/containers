@@ -226,7 +226,7 @@ jobs:
       # Build amd64 into the local daemon so Trivy scans the EXACT image we're
       # about to publish — before it is pushed.
       - name: Build image for scanning (amd64)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./${{ matrix.container }}
           platforms: linux/amd64
@@ -261,7 +261,7 @@ jobs:
       # Publish (multi-arch). Skipped on pull_request — PRs only build + scan.
       - name: Build and push (multi-arch)
         if: github.event_name != 'pull_request'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./${{ matrix.container }}
           # Multi-arch: arm64 is built under QEMU emulation (slower). Drop
