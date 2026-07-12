@@ -177,8 +177,9 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.container }}
-          # Add ",linux/arm64" for multi-arch (slower; builds arm64 under QEMU).
-          platforms: linux/amd64
+          # Multi-arch: arm64 is built under QEMU emulation (slower). Drop
+          # ",linux/arm64" to build amd64 only if you want faster builds.
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: |

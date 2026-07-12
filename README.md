@@ -53,6 +53,11 @@ case. The rolling and `sha-` tags always move forward.
 - **Manual** — from the repo's *Actions → build → Run workflow*, optionally
   naming a single container; leave it blank to rebuild everything.
 
+Images are built for **`linux/amd64` and `linux/arm64`** (arm64 runs natively on
+Apple Silicon and ARM servers). arm64 is emulated under QEMU during the build,
+so it's slower; drop `,linux/arm64` from the workflow's `platforms:` for
+amd64-only, faster builds.
+
 ## Pulling an image
 
 ```bash
