@@ -1,7 +1,7 @@
 # lastpass-cli
 
 [`lpass`](https://github.com/lastpass/lastpass-cli), the LastPass command-line
-client, compiled from source into a small Debian-based image.
+client, compiled from source into a small (~17 MB) Alpine-based image.
 
 ## Image
 

@@ -1,27 +1,24 @@
 # lastpass-cli — the LastPass command-line client (`lpass`), compiled from the
-# upstream release tarball. Recipe follows the maintainers' contrib/Dockerfile
-# (https://github.com/lastpass/lastpass-cli), split into a multi-stage build so
-# the final image ships only the binary + runtime libraries.
+# upstream release tarball on Alpine (musl). lastpass-cli is packaged in Alpine's
+# community repo, so musl support is well-tested. Multi-stage build: compile in a
+# builder, ship only the binary + runtime libs (~17 MB total).
 #
 # IMPORTANT: keep LASTPASS_CLI_VERSION in sync with ./VERSION (both = 1.6.1).
-ARG DEBIAN_TAG=bookworm-slim
+ARG ALPINE_TAG=3.20
 
 # ---- build stage: compile lpass from source ---------------------------------
-FROM debian:${DEBIAN_TAG} AS build
+FROM alpine:${ALPINE_TAG} AS build
 ARG LASTPASS_CLI_VERSION=1.6.1
-ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update \
- && apt-get install --no-install-recommends -yqq \
-      build-essential \
+RUN apk add --no-cache \
+      build-base \
       cmake \
-      pkg-config \
-      ca-certificates \
+      pkgconf \
       curl \
-      libcurl4-openssl-dev \
-      libssl-dev \
-      libxml2-dev \
- && rm -rf /var/lib/apt/lists/*
+      ca-certificates \
+      curl-dev \
+      openssl-dev \
+      libxml2-dev
 
 WORKDIR /src
 RUN curl -fsSL "https://github.com/lastpass/lastpass-cli/archive/refs/tags/v${LASTPASS_CLI_VERSION}.tar.gz" \
@@ -31,7 +28,7 @@ RUN curl -fsSL "https://github.com/lastpass/lastpass-cli/archive/refs/tags/v${LA
  && lpass --version
 
 # ---- runtime stage: binary + shared libs only -------------------------------
-FROM debian:${DEBIAN_TAG} AS runtime
+FROM alpine:${ALPINE_TAG} AS runtime
 ARG LASTPASS_CLI_VERSION=1.6.1
 
 LABEL org.opencontainers.image.title="lastpass-cli" \
@@ -39,15 +36,12 @@ LABEL org.opencontainers.image.title="lastpass-cli" \
       org.opencontainers.image.version="${LASTPASS_CLI_VERSION}" \
       org.opencontainers.image.source="https://github.com/lastpass/lastpass-cli"
 
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update \
- && apt-get install --no-install-recommends -yqq \
-      ca-certificates \
-      libcurl4 \
-      libssl3 \
+# libcurl pulls in the openssl (libcrypto/libssl) runtime libs that lpass links.
+RUN apk add --no-cache \
+      libcurl \
       libxml2 \
-      pinentry-curses \
- && rm -rf /var/lib/apt/lists/*
+      pinentry \
+      ca-certificates
 
 COPY --from=build /usr/bin/lpass /usr/bin/lpass
 
