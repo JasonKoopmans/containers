@@ -1,0 +1,6 @@
+# We intentionally do NOT pin apk package versions (DL3018). Package versions are
+# tied to the base image tag (e.g. alpine:3.24), which Renovate keeps current;
+# pinning apk revisions (pkg=1.2.3-r0) would break on every Alpine package rebuild
+# and isn't Renovate-trackable. Reproducibility comes from the base image tag.
+ignored:
+  - DL3018
