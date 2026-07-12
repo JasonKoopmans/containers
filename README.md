@@ -10,6 +10,7 @@ versioned and published independently to the
 <container>/
   Dockerfile        # required — its presence is what marks a folder as a container
   VERSION           # required — semver string, the source of truth for tags
+  DESCRIPTION       # optional — becomes the GHCR package-page description
   README.md         # what it is / how to use it
   .dockerignore     # keep docs + VERSION out of the build context
 .github/workflows/
@@ -99,6 +100,18 @@ works with a real token (see setup) — Renovate's PRs must trigger CI.
 ```bash
 docker pull ghcr.io/OWNER/example:1.4.0     # OWNER = your GitHub username/org
 ```
+
+## Package pages (GHCR)
+
+Heads-up on a GitHub limitation: a package's **README body always mirrors this
+repo's root `README.md`** — GHCR does not support a per-folder or per-package
+README, so every container's package page shows this same file. What you *can*
+customize per package is the **description** and links: put a sentence or two in
+`<container>/DESCRIPTION` and CI publishes it as the package's
+`org.opencontainers.image.description` (an index annotation, required for
+multi-arch), along with a **Documentation** link to that container's own
+`README.md`. So each package gets a specific blurb + link, while the README body
+stays this root file.
 
 ## First-time setup (one-time, ~2 min)
 

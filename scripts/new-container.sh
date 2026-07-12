@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Scaffold a new container folder: Dockerfile, VERSION, README, .dockerignore.
+# Scaffold a new container folder: Dockerfile, VERSION, DESCRIPTION, README,
+# .dockerignore.
 # Usage: scripts/new-container.sh <container-name>
 set -euo pipefail
 
@@ -25,9 +26,13 @@ EOF
 
 echo "0.1.0" > "$name/VERSION"
 
+# One-line-ish blurb shown as the GHCR package description (index annotation).
+echo "TODO: one or two sentences describing $name (shown on the GHCR package page)." > "$name/DESCRIPTION"
+
 cat > "$name/.dockerignore" <<'EOF'
 README.md
 VERSION
+DESCRIPTION
 EOF
 
 cat > "$name/README.md" <<EOF
@@ -42,7 +47,7 @@ ghcr.io/OWNER/$name:latest
 \`\`\`
 
 Versions are tracked in \`VERSION\` — bump it in the same commit that changes
-this container.
+this container. The \`DESCRIPTION\` file becomes the GHCR package description.
 EOF
 
 echo "Created ./$name (VERSION 0.1.0)."

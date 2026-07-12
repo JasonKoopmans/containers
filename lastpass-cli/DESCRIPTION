@@ -1,0 +1,5 @@
+LastPass command-line client (lpass) in a small (~17 MB) multi-arch Alpine image.
+lpass is the entrypoint, so `docker run ghcr.io/jasonkoopmans/lastpass-cli show <site>`
+works directly. Mount a volume at /root/.lpass to persist your login across runs,
+and set LPASS_DISABLE_PINENTRY=1 to feed the master password on stdin for scripts.
+See the linked Documentation for login and usage examples.

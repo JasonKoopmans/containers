@@ -24,7 +24,14 @@ Container Registry (GHCR) on every push to `main`.
   container's files without bumping `VERSION`, CI still builds and **overwrites**
   the existing version tag — it prints a non-blocking warning in that case.
 - Keep docs/metadata out of the image via each folder's `.dockerignore`
-  (excludes `README.md` and `VERSION`).
+  (excludes `README.md`, `VERSION`, `DESCRIPTION`).
+- **`<container>/DESCRIPTION`** (optional): one or two sentences used as the GHCR
+  package-page description. CI collapses it to one line and publishes it as an
+  **index** annotation `org.opencontainers.image.description` (a plain LABEL is
+  NOT read for multi-arch package pages), plus a `documentation` link to the
+  container's README. **GHCR limitation:** the package README *body* always shows
+  the repo root `README.md` — there is no per-folder/per-package README, so
+  `DESCRIPTION` (blurb + link) is the only per-package surface.
 
 ## CI model — [.github/workflows/build.yml](.github/workflows/build.yml)
 

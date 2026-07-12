@@ -1,0 +1,3 @@
+Minimal Alpine scaffold demonstrating this repo's build, versioning, and
+publishing pattern. Copy this folder (or run `make new C=<name>`) to start a new
+container. Not intended for real use.
