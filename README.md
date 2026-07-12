@@ -13,7 +13,11 @@ versioned and published independently to the
   README.md         # what it is / how to use it
   .dockerignore     # keep docs + VERSION out of the build context
 .github/workflows/
-  build.yml         # detect changed containers → build + push only those
+  build.yml         # detect changed containers → scan → build + push only those
+  scan.yml          # daily re-scan of published images
+  renovate.yml      # self-hosted Renovate (automated dependency updates)
+renovate.json       # Renovate config (what to update, auto-merge policy)
+.mise.toml          # pinned CLI tools (Trivy, hadolint) for local + CI parity
 scripts/new-container.sh
 Makefile
 ```
@@ -58,6 +62,38 @@ Apple Silicon and ARM servers). arm64 is emulated under QEMU during the build,
 so it's slower; drop `,linux/arm64` from the workflow's `platforms:` for
 amd64-only, faster builds.
 
+## Security scanning
+
+Every build scans the exact image **before** it is pushed, using
+[Trivy](https://trivy.dev) (pinned in [`.mise.toml`](.mise.toml)):
+
+- **Gate:** the publish is **blocked** if Trivy finds a **fixable HIGH or
+  CRITICAL** vulnerability. Un-fixable ones are reported but don't block.
+- **Reporting:** all HIGH/CRITICAL findings (plus [hadolint](https://github.com/hadolint/hadolint)
+  Dockerfile lint) are uploaded to the repo's **Security → Code scanning** tab.
+- **Daily re-scan:** [`scan.yml`](.github/workflows/scan.yml) re-scans the
+  already-published images every day, so CVEs disclosed *after* a build still
+  surface. A failed scheduled run is the notification.
+- **PRs:** pull requests build + scan but do **not** push — that run is the check
+  that gates auto-merge (below).
+
+Run the same scan locally: `mise install && trivy image <ref>`.
+
+## Automated updates
+
+[Renovate](https://docs.renovatebot.com) ([`renovate.json`](renovate.json)) runs
+as a self-hosted GitHub Action ([`renovate.yml`](.github/workflows/renovate.yml))
+and keeps these current:
+
+- **Base images** (`FROM alpine:3.24`) — a base bump is also how a container's
+  packaged tool (e.g. `lpass`) moves forward.
+- **GitHub Actions** versions in the workflows.
+- **Pinned CLI tools** in `.mise.toml` (Trivy, hadolint).
+
+**Auto-merge policy:** digest/patch/minor updates auto-merge **once the build +
+scan pass** on the PR; **major** updates open a PR for you to review. This only
+works with a real token (see setup) — Renovate's PRs must trigger CI.
+
 ## Pulling an image
 
 ```bash
@@ -76,10 +112,24 @@ pulls), but a few settings need flipping once:
    package. For each one, open it under your profile's *Packages* tab →
    *Package settings* → **Change visibility → Public**, and link it to this repo
    under *Manage Actions access* if it isn't already.
-3. That's it — subsequent pushes just work.
+3. That's it for publishing — subsequent pushes just work.
 
 > Storage and bandwidth are free today; GitHub has committed to 30 days' notice
 > before any GHCR billing begins.
+
+### Enabling automated updates (Renovate)
+
+Renovate needs a token that is **not** the default `GITHUB_TOKEN`, because PRs
+opened by `GITHUB_TOKEN` don't trigger other workflows — and the build/scan run
+on the PR is what gates auto-merge.
+
+1. Create a **fine-grained PAT** (or classic PAT with `repo` + `workflow`) scoped
+   to this repo, with read/write on *Contents*, *Pull requests*, and *Workflows*.
+2. Add it as a repo secret named **`RENOVATE_TOKEN`** (*Settings → Secrets and
+   variables → Actions*). Until it's set, the `renovate` workflow is a no-op.
+3. *(Recommended)* Turn on **branch protection** for `main` requiring the `build`
+   check, so nothing merges — auto-merge included — until the scan passes.
+4. Trigger the first run manually: *Actions → renovate → Run workflow*.
 
 ## Local development
 

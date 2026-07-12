@@ -28,21 +28,40 @@ Container Registry (GHCR) on every push to `main`.
 
 ## CI model — [.github/workflows/build.yml](.github/workflows/build.yml)
 
-- **Triggers:** push to `main` (root docs — `README.md`, `AGENTS.md`,
-  `CLAUDE.md`, `.gitignore`, `LICENSE` — are path-ignored), or manual
-  `workflow_dispatch`.
-- **`detect` job:** diffs `github.event.before`..`github.sha`, maps each changed
-  file to its top-level folder, keeps only folders that contain a `Dockerfile`,
-  and emits them as a JSON build matrix. A first push / force-push / missing base
-  → builds **all** containers. `workflow_dispatch` takes an optional `container`
-  input (blank = all).
-- **`build` job:** one matrix leg per changed container. Reads
-  `<container>/VERSION`, computes tags, logs into GHCR with the built-in
-  `GITHUB_TOKEN`, and builds + pushes for `linux/amd64,linux/arm64`.
-- **No external secrets.** `permissions: packages: write` on the workflow is what
-  lets `GITHUB_TOKEN` push to GHCR.
+- **Triggers:** push to `main`, **pull_request** to `main` (root docs —
+  `README.md`, `AGENTS.md`, `CLAUDE.md`, `.gitignore`, `LICENSE` — are
+  path-ignored), or manual `workflow_dispatch`.
+- **`detect` job:** maps each changed file to its top-level folder, keeps only
+  folders that contain a `Dockerfile`, and emits them as a JSON build matrix. Diff
+  base is `github.event.before` (push) or the PR base sha (pull_request). A first
+  push / force-push / missing base → builds **all** containers. `workflow_dispatch`
+  takes an optional `container` input (blank = all).
+- **`build` job:** one matrix leg per changed container. Installs Trivy + hadolint
+  via mise, lints the Dockerfile (report-only), builds an amd64 image with
+  `load: true`, **scans it with Trivy, and gates on fixable HIGH/CRITICAL**, then
+  builds + pushes `linux/amd64,linux/arm64`. **The push step is skipped on
+  `pull_request`** — PRs build + scan only (the gating check for auto-merge).
+- **No external secrets** for building. `permissions: packages: write` lets
+  `GITHUB_TOKEN` push to GHCR; `security-events: write` uploads SARIF.
 - The matrix builder is intentionally **jq-free** (pure bash). Do not reintroduce
   a `jq` dependency (see gotchas).
+
+## Security scanning & automated updates
+
+- **Scanner:** Trivy, pinned in `.mise.toml` (with hadolint). Same tool/version
+  local and CI. Gate policy: block on **fixable HIGH/CRITICAL**; everything else
+  is reported to the GitHub Security tab (SARIF).
+- **`scan.yml`:** daily scheduled re-scan of the *published* GHCR images (matrix
+  over all containers), so post-build CVEs surface. Report-only + fails the run on
+  fixable HIGH/CRITICAL as a notification.
+- **Updates:** self-hosted Renovate (`renovate.json` + `.github/workflows/renovate.yml`)
+  updates base images, GitHub Actions, and `.mise.toml` tools. Auto-merges
+  digest/patch/minor once CI passes; majors get a PR. Needs a **`RENOVATE_TOKEN`**
+  secret (a PAT/App token, NOT `GITHUB_TOKEN`, so its PRs trigger CI). The workflow
+  is a no-op until that secret exists.
+- **Base image = tool version** for package-based containers (e.g. `lastpass-cli`
+  installs `lpass` via `apk`), so bumping `FROM alpine:X` is what advances the
+  tool; keep the container's `VERSION` + `image.version` label in sync when it does.
 
 ## Tagging scheme (per container, derived from `VERSION`)
 

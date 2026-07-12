@@ -1,0 +1,31 @@
+name: renovate
+
+# Self-hosted Renovate. Runs on a schedule and opens/auto-merges dependency PRs
+# per renovate.json. Requires a RENOVATE_TOKEN secret (a PAT or GitHub App token,
+# NOT the default GITHUB_TOKEN) so the PRs it opens trigger the build workflow —
+# that CI run is what gates auto-merge. See README "Automated updates".
+on:
+  schedule:
+    - cron: "0 */4 * * *" # every 4 hours
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    env:
+      RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+    steps:
+      # No-op until the token is configured, so the scheduled run stays green.
+      - name: Run Renovate
+        if: env.RENOVATE_TOKEN != ''
+        uses: renovatebot/github-action@v46
+        env:
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          LOG_LEVEL: info

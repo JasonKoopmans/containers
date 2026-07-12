@@ -1,6 +1,6 @@
 # Example container — copy this folder (or run `make new C=<name>`) to start a new one.
 # See ../README.md for how versioning, tagging, and publishing work.
-FROM alpine:3.20
+FROM alpine:3.24
 
 LABEL org.opencontainers.image.title="example" \
       org.opencontainers.image.description="Example container scaffold."

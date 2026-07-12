@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits"
+  ],
+  "labels": ["dependencies"],
+  "dockerfile": { "enabled": true },
+  "github-actions": { "enabled": true },
+  "mise": { "enabled": true },
+  "packageRules": [
+    {
+      "description": "Auto-merge low-risk updates (base image digest/patch/minor, Actions, pinned tools). Auto-merge only happens once the build + Trivy scan pass on the PR.",
+      "matchManagers": ["dockerfile", "github-actions", "mise"],
+      "matchUpdateTypes": ["digest", "pin", "patch", "minor"],
+      "automerge": true
+    },
+    {
+      "description": "Never auto-merge major updates — open a PR for review.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    }
+  ]
+}

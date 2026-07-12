@@ -1,0 +1,94 @@
+name: scan
+
+# Daily re-scan of the PUBLISHED images, so CVEs disclosed after an image was
+# built still surface. Results go to the Security tab; a failed run (fixable
+# HIGH/CRITICAL found) is the notification.
+on:
+  schedule:
+    - cron: "17 7 * * *" # 07:17 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+  security-events: write
+
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+jobs:
+  # Enumerate every container in the repo (matrix leg per published image).
+  list:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          set -euo pipefail
+          ITEMS=""
+          for f in $(git ls-files '*/Dockerfile'); do ITEMS="$ITEMS ${f%%/*}"; done
+          MATRIX="["
+          first=1
+          for d in $(printf '%s\n' $ITEMS | sort -u); do
+            [ $first -eq 1 ] && first=0 || MATRIX="$MATRIX,"
+            MATRIX="$MATRIX\"$d\""
+          done
+          MATRIX="$MATRIX]"
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "containers: $MATRIX"
+
+  scan:
+    needs: list
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        container: ${{ fromJSON(needs.list.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4 # for .mise.toml (pinned Trivy version)
+      - uses: jdx/mise-action@v4
+
+      # Auth so Trivy can pull the (possibly private) image straight from GHCR.
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image ref
+        id: ref
+        env:
+          OWNER: ${{ github.repository_owner }}
+          CONTAINER: ${{ matrix.container }}
+        run: |
+          REF="$(printf 'ghcr.io/%s/%s:latest' "$OWNER" "$CONTAINER" | tr '[:upper:]' '[:lower:]')"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
+      - name: Trivy report (SARIF -> Security tab)
+        run: |
+          trivy image --scanners vuln --no-progress \
+            --severity HIGH,CRITICAL \
+            --format sarif --output trivy.sarif \
+            "${{ steps.ref.outputs.ref }}"
+      - name: Upload results
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-scheduled-${{ matrix.container }}
+
+      # Redden the run (notification) if a fixable HIGH/CRITICAL exists.
+      - name: Fail on fixable HIGH/CRITICAL
+        run: |
+          trivy image --scanners vuln --no-progress \
+            --severity HIGH,CRITICAL --ignore-unfixed \
+            --exit-code 1 \
+            "${{ steps.ref.outputs.ref }}"

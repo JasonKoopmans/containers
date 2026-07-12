@@ -16,7 +16,7 @@ fi
 mkdir -p "$name"
 
 cat > "$name/Dockerfile" <<EOF
-FROM alpine:3.20
+FROM alpine:3.24
 
 LABEL org.opencontainers.image.title="$name"
 

@@ -1,7 +1,8 @@
 # lastpass-cli
 
 [`lpass`](https://github.com/lastpass/lastpass-cli), the LastPass command-line
-client, compiled from source into a small (~17 MB) Alpine-based image.
+client, packaged as a small (~17 MB) Alpine image via Alpine's maintained
+`lastpass-cli` community package.
 
 ## Image
 
@@ -10,9 +11,10 @@ ghcr.io/jasonkoopmans/lastpass-cli:1.6.1
 ghcr.io/jasonkoopmans/lastpass-cli:latest
 ```
 
-The image version tracks the upstream `lpass` release. To bump it, update the
-`LASTPASS_CLI_VERSION` arg in the [Dockerfile](Dockerfile) **and** [VERSION](VERSION)
-together, then commit.
+The `lpass` version is whatever the Alpine base image ships (`alpine:3.24` →
+lpass 1.6.1). Renovate bumps the base image automatically; when a base bump
+changes the shipped `lpass` version, update [VERSION](VERSION) and the
+`image.version` label to match.
 
 ## Usage
 
@@ -51,7 +53,7 @@ echo "$LASTPASS_PASSWORD" | docker run --rm -i -v lpass:/root/.lpass \
 ### Get a shell instead
 
 ```bash
-docker run --rm -it --entrypoint bash -v lpass:/root/.lpass \
+docker run --rm -it --entrypoint sh -v lpass:/root/.lpass \
   ghcr.io/jasonkoopmans/lastpass-cli
 ```
 

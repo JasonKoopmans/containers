@@ -1,0 +1,8 @@
+# CLI tools used both locally and in CI (installed in CI via jdx/mise-action).
+# Pinning here keeps local and CI versions identical; Renovate keeps them current.
+#
+#   mise install        # get these locally
+#   mise run ...        # (nothing defined yet)
+[tools]
+trivy = "0.72.0"     # container vulnerability + config + secret scanner
+hadolint = "2.14.0"  # Dockerfile best-practice linter

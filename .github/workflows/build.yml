@@ -12,6 +12,16 @@ on:
       - "CLAUDE.md"
       - ".gitignore"
       - "LICENSE"
+  # PRs (e.g. Renovate updates) build + scan but do NOT push — this is the
+  # status check that gates auto-merge.
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - ".gitignore"
+      - "LICENSE"
   workflow_dispatch:
     inputs:
       container:
@@ -47,6 +57,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
           DISPATCH_CONTAINER: ${{ github.event.inputs.container }}
         run: |
           set -euo pipefail
@@ -64,6 +76,11 @@ jobs:
             else
               CANDIDATES="$(list_all)"
             fi
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            # PR: build folders changed relative to the base branch.
+            CANDIDATES="$(git diff --name-only "$PR_BASE" "$PR_HEAD" \
+              | while IFS= read -r f; do printf '%s\n' "${f%%/*}"; done \
+              | sort -u)"
           else
             # push: build folders touched between the previous and current commit.
             if [ -z "${BEFORE:-}" ] \
@@ -121,12 +138,28 @@ jobs:
     permissions:
       contents: read
       packages: write
+      security-events: write # upload Trivy + hadolint SARIF to the Security tab
     strategy:
       fail-fast: false
       matrix:
         container: ${{ fromJSON(needs.detect.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install scan tools (Trivy, hadolint)
+        uses: jdx/mise-action@v4
+
+      # Dockerfile best-practice lint. Report-only: results go to the Security
+      # tab but never block a publish.
+      - name: Lint Dockerfile (hadolint)
+        run: hadolint --no-fail --format sarif "${{ matrix.container }}/Dockerfile" > hadolint.sarif
+      - name: Upload hadolint results
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: hadolint.sarif
+          category: hadolint-${{ matrix.container }}
 
       - name: Compute image name and tags
         id: meta
@@ -176,7 +209,45 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v6
+      # Build amd64 into the local daemon so Trivy scans the EXACT image we're
+      # about to publish — before it is pushed.
+      - name: Build image for scanning (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.container }}
+          platforms: linux/amd64
+          load: true
+          tags: scan-target:${{ matrix.container }}
+          cache-from: type=gha,scope=${{ matrix.container }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.container }}
+
+      # Full HIGH/CRITICAL report (including unfixed) -> Security tab.
+      - name: Trivy vulnerability report
+        run: |
+          trivy image --scanners vuln --no-progress \
+            --severity HIGH,CRITICAL \
+            --format sarif --output trivy.sarif \
+            "scan-target:${{ matrix.container }}"
+      - name: Upload Trivy results
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-${{ matrix.container }}
+
+      # Gate: block the publish on FIXABLE HIGH/CRITICAL vulnerabilities.
+      - name: Trivy gate (fixable HIGH/CRITICAL)
+        run: |
+          trivy image --scanners vuln --no-progress \
+            --severity HIGH,CRITICAL --ignore-unfixed \
+            --exit-code 1 \
+            "scan-target:${{ matrix.container }}"
+
+      # Publish (multi-arch). Skipped on pull_request — PRs only build + scan.
+      - name: Build and push (multi-arch)
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.container }}
           # Multi-arch: arm64 is built under QEMU emulation (slower). Drop
