@@ -10,7 +10,7 @@
 REGISTRY ?= ghcr.io
 OWNER    ?= $(shell git config user.name 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
 
-.PHONY: build run new list
+.PHONY: build run new list catalog catalog-check
 
 build:
 	@test -n "$(C)" || { echo "Usage: make build C=<container-folder>"; exit 1; }
@@ -28,3 +28,10 @@ new:
 
 list:
 	@git ls-files '*/Dockerfile' | sed 's:/Dockerfile$$::' | sort -u
+
+# Regenerate the README Containers table from each container's DESCRIPTION.
+catalog:
+	./scripts/gen-catalog.sh
+
+catalog-check:
+	./scripts/gen-catalog.sh --check

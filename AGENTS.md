@@ -61,6 +61,10 @@ Container Registry (GHCR) on every push to `main`.
 - **`scan.yml`:** daily scheduled re-scan of the *published* GHCR images (matrix
   over all containers), so post-build CVEs surface. Report-only + fails the run on
   fixable HIGH/CRITICAL as a notification.
+- **SBOM:** each build generates a CycloneDX SBOM (`trivy image --format cyclonedx`)
+  and uploads it as a workflow **artifact** `sbom-<container>` — deliberately not
+  attached to the image, to keep the GHCR package listing free of `unknown/unknown`
+  attestation manifests.
 - **Updates:** self-hosted Renovate (`renovate.json` + `.github/workflows/renovate.yml`)
   updates base images, GitHub Actions, and `.mise.toml` tools. Auto-merges
   digest/patch/minor once CI passes; majors get a PR. Needs a **`RENOVATE_TOKEN`**
@@ -84,9 +88,12 @@ make new C=my-tool     # scaffolds my-tool/{Dockerfile,VERSION=0.1.0,README.md,.
 git add my-tool && git commit -m "add my-tool" && git push
 ```
 
-Also add a row to the **Containers** catalog table in the root `README.md` — that
-table is hand-maintained and is what shows on every GHCR package page (the package
-README body is always the repo root README; there is no per-package README).
+Then run **`make catalog`** to regenerate the **Containers** table in the root
+`README.md` from each container's `DESCRIPTION` (first line = the catalog blurb).
+That table is what shows on every GHCR package page (the package README body is
+always the repo root README; there is no per-package README). CI has a `catalog`
+job that fails if the table is stale, so don't hand-edit between the
+`<!-- catalog:start/end -->` markers.
 
 The **first** build of each new package creates a **private** GHCR package;
 visibility must be flipped to Public manually in the GitHub UI (Packages → the

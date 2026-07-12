@@ -258,6 +258,22 @@ jobs:
             --exit-code 1 \
             "scan-target:${{ matrix.container }}"
 
+      # SBOM (CycloneDX) of the exact image, uploaded as a build artifact.
+      # Kept off the image (no attestation) so the GHCR package listing stays clean.
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          trivy image --no-progress \
+            --format cyclonedx \
+            --output "sbom-${{ matrix.container }}.cdx.json" \
+            "scan-target:${{ matrix.container }}"
+      - name: Upload SBOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.container }}
+          path: sbom-${{ matrix.container }}.cdx.json
+          if-no-files-found: error
+
       # Publish (multi-arch). Skipped on pull_request — PRs only build + scan.
       - name: Build and push (multi-arch)
         if: github.event_name != 'pull_request'
@@ -299,3 +315,14 @@ jobs:
           docker buildx imagetools inspect "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" \
             --format '{{ json .Manifest.Annotations }}' | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Independent check: the README Containers catalog must match the DESCRIPTIONs.
+  # Runs alongside build/detect and does not block publishing.
+  # ---------------------------------------------------------------------------
+  catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: README catalog is up to date
+        run: ./scripts/gen-catalog.sh --check
