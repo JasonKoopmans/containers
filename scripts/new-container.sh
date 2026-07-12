@@ -51,4 +51,5 @@ this container. The \`DESCRIPTION\` file becomes the GHCR package description.
 EOF
 
 echo "Created ./$name (VERSION 0.1.0)."
-echo "Edit $name/Dockerfile, then commit to main to publish."
+echo "Next: edit $name/Dockerfile and $name/DESCRIPTION, add a row to the"
+echo "      Containers table in README.md, then commit to main to publish."

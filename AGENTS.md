@@ -84,6 +84,10 @@ make new C=my-tool     # scaffolds my-tool/{Dockerfile,VERSION=0.1.0,README.md,.
 git add my-tool && git commit -m "add my-tool" && git push
 ```
 
+Also add a row to the **Containers** catalog table in the root `README.md` — that
+table is hand-maintained and is what shows on every GHCR package page (the package
+README body is always the repo root README; there is no per-package README).
+
 The **first** build of each new package creates a **private** GHCR package;
 visibility must be flipped to Public manually in the GitHub UI (Packages → the
 image → Package settings). **Agents must not change package visibility or other

@@ -1,8 +1,24 @@
 # containers
 
-A monorepo of containers I author for myself. One folder per container; each is
-versioned and published independently to the
-[GitHub Container Registry (GHCR)](https://ghcr.io) on every push to `main`.
+Personal container images — one folder per container, each built and published
+independently to the [GitHub Container Registry (GHCR)](https://ghcr.io) on every
+push to `main`.
+
+> **Landed here from a package page?** This overview is shown on every package (a
+> [GHCR limitation](#package-pages-ghcr)). Find your image in the catalog below
+> and follow its **Docs** link for image-specific usage.
+
+## Containers
+
+| Image | Pull | Docs |
+| ----- | ---- | ---- |
+| **lastpass-cli** — LastPass CLI (`lpass`) in a small Alpine image | `docker pull ghcr.io/jasonkoopmans/lastpass-cli` | [usage →](lastpass-cli/README.md) |
+| **example** — template scaffold; copy it to start a new container | `docker pull ghcr.io/jasonkoopmans/example` | [usage →](example/README.md) |
+
+Images are multi-arch (`linux/amd64` + `linux/arm64`) and tagged `latest`, the
+exact `VERSION`, rolling `major` / `major.minor`, and `sha-<commit>` (see
+[Versioning](#versioning-per-container)). Add `:` + a tag to pin, e.g.
+`ghcr.io/jasonkoopmans/lastpass-cli:1.6.1`.
 
 ## Layout
 
@@ -26,12 +42,14 @@ Makefile
 ## Adding a container
 
 ```bash
-make new C=my-tool        # scaffolds my-tool/ with Dockerfile + VERSION 0.1.0
-# edit my-tool/Dockerfile
-git add my-tool && git commit -m "add my-tool" && git push
+make new C=my-tool        # scaffolds my-tool/ with Dockerfile + VERSION + DESCRIPTION
+# edit my-tool/Dockerfile and DESCRIPTION, then add a row to the Containers table above
+git add my-tool README.md && git commit -m "add my-tool" && git push
 ```
 
 The push to `main` builds `my-tool` and publishes it. Nothing else rebuilds.
+(The [Containers](#containers) catalog is maintained by hand — add your new image
+there so it appears on every package page.)
 
 ## Versioning (per container)
 
@@ -94,12 +112,6 @@ and keeps these current:
 **Auto-merge policy:** digest/patch/minor updates auto-merge **once the build +
 scan pass** on the PR; **major** updates open a PR for you to review. This only
 works with a real token (see setup) — Renovate's PRs must trigger CI.
-
-## Pulling an image
-
-```bash
-docker pull ghcr.io/OWNER/example:1.4.0     # OWNER = your GitHub username/org
-```
 
 ## Package pages (GHCR)
 
