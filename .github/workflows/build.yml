@@ -1,0 +1,190 @@
+name: build
+
+# Commits to main build and publish ONLY the container folders that changed.
+# Each container is versioned individually via its own VERSION file.
+on:
+  push:
+    branches: [main]
+    # Ignore pushes that only touch repo-level docs/meta so we don't build for nothing.
+    paths-ignore:
+      - "README.md"
+      - ".gitignore"
+      - "LICENSE"
+  workflow_dispatch:
+    inputs:
+      container:
+        description: "Container folder to build (blank = build all)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Figure out which container folders need building and emit them as a matrix.
+  # A "container folder" is any top-level directory that contains a Dockerfile.
+  # ---------------------------------------------------------------------------
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+      any: ${{ steps.detect.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so we can diff against the previous commit
+
+      - id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          DISPATCH_CONTAINER: ${{ github.event.inputs.container }}
+        run: |
+          set -euo pipefail
+
+          # Every top-level dir that contains a Dockerfile.
+          list_all() {
+            git ls-files '*/Dockerfile' | while IFS= read -r f; do
+              printf '%s\n' "${f%%/*}"
+            done | sort -u
+          }
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ -n "$DISPATCH_CONTAINER" ]; then
+              CANDIDATES="$DISPATCH_CONTAINER"
+            else
+              CANDIDATES="$(list_all)"
+            fi
+          else
+            # push: build folders touched between the previous and current commit.
+            if [ -z "${BEFORE:-}" ] \
+              || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
+              || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              # First push / new branch / force-push with no valid base -> build all.
+              CANDIDATES="$(list_all)"
+            else
+              CANDIDATES="$(git diff --name-only "$BEFORE" "$AFTER" \
+                | while IFS= read -r f; do printf '%s\n' "${f%%/*}"; done \
+                | sort -u)"
+            fi
+          fi
+
+          # Keep only dirs that really are containers (have a Dockerfile). This
+          # drops .github/, scripts/, and root files from the candidate list.
+          ITEMS=""
+          while IFS= read -r d; do
+            [ -z "$d" ] && continue
+            [ -f "$d/Dockerfile" ] || continue
+            ITEMS="$ITEMS $d"
+
+            # Soft reminder: content changed but VERSION did not -> the existing
+            # version tag will be overwritten. Non-blocking on purpose.
+            if [ "$EVENT_NAME" = "push" ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              if [ -n "$(git diff --name-only "$BEFORE" "$AFTER" -- "$d" | grep -v "^$d/VERSION$" || true)" ] \
+                && [ -z "$(git diff --name-only "$BEFORE" "$AFTER" -- "$d/VERSION")" ]; then
+                echo "::warning title=No version bump::'$d' changed but $d/VERSION was not bumped; the current version tag will be overwritten."
+              fi
+            fi
+          done <<< "$CANDIDATES"
+
+          # Build a JSON array for the build matrix (no jq dependency).
+          MATRIX="["
+          first=1
+          for d in $(printf '%s\n' $ITEMS | sort -u); do
+            esc="$(printf '%s' "$d" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+            [ $first -eq 1 ] && first=0 || MATRIX="$MATRIX,"
+            MATRIX="$MATRIX\"$esc\""
+          done
+          MATRIX="$MATRIX]"
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          [ "$MATRIX" = "[]" ] && echo "any=false" >> "$GITHUB_OUTPUT" || echo "any=true" >> "$GITHUB_OUTPUT"
+          echo "Containers to build: $MATRIX"
+
+  # ---------------------------------------------------------------------------
+  # Build + push each changed container. One matrix leg per container so they
+  # are versioned and published independently.
+  # ---------------------------------------------------------------------------
+  build:
+    needs: detect
+    if: needs.detect.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        container: ${{ fromJSON(needs.detect.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image name and tags
+        id: meta
+        env:
+          CONTAINER: ${{ matrix.container }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          if [ ! -f "$CONTAINER/VERSION" ]; then
+            echo "::error::$CONTAINER has no VERSION file"; exit 1
+          fi
+          VERSION="$(tr -d '[:space:]' < "$CONTAINER/VERSION")"
+          if [ -z "$VERSION" ]; then
+            echo "::error::$CONTAINER/VERSION is empty"; exit 1
+          fi
+
+          # GHCR requires lowercase image references.
+          IMAGE="$(printf 'ghcr.io/%s/%s' "$OWNER" "$CONTAINER" | tr '[:upper:]' '[:lower:]')"
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+
+          TAGS="${IMAGE}:${VERSION}"$'\n'"${IMAGE}:latest"$'\n'"${IMAGE}:sha-${SHORT_SHA}"
+          # Add rolling major and major.minor tags for strict semver versions.
+          if printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            TAGS="${TAGS}"$'\n'"${IMAGE}:${VERSION%%.*}"$'\n'"${IMAGE}:${VERSION%.*}"
+          fi
+
+          {
+            echo "image=$IMAGE"
+            echo "version=$VERSION"
+            echo "tags<<TAGS_EOF"
+            printf '%s\n' "$TAGS"
+            echo "TAGS_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### \`$CONTAINER\` → \`$VERSION\`"
+            printf '%s\n' "$TAGS" | sed 's/^/- `/; s/$/`/'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: docker/setup-qemu-action@v3 # enables arm64 emulation (only needed for multi-arch)
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.container }}
+          # Add ",linux/arm64" for multi-arch (slower; builds arm64 under QEMU).
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+          provenance: false # keeps the GHCR package listing clean; flip to true for supply-chain attestations
+          cache-from: type=gha,scope=${{ matrix.container }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.container }}
