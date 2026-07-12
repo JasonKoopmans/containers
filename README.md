@@ -13,7 +13,6 @@ push to `main`.
 | Image | Pull | Docs |
 | ----- | ---- | ---- |
 | **lastpass-cli** — LastPass CLI (`lpass`) in a small Alpine image | `docker pull ghcr.io/jasonkoopmans/lastpass-cli` | [usage →](lastpass-cli/README.md) |
-| **example** — template scaffold; copy it to start a new container | `docker pull ghcr.io/jasonkoopmans/example` | [usage →](example/README.md) |
 
 Images are multi-arch (`linux/amd64` + `linux/arm64`) and tagged `latest`, the
 exact `VERSION`, rolling `major` / `major.minor`, and `sha-<commit>` (see
@@ -53,7 +52,7 @@ there so it appears on every package page.)
 
 ## Versioning (per container)
 
-Each container owns a [`VERSION`](example/VERSION) file containing a semver
+Each container owns a [`VERSION`](lastpass-cli/VERSION) file containing a semver
 string like `1.4.0`. **Bump it in the same commit** that changes the container.
 CI reads it and pushes these tags:
 
@@ -159,10 +158,10 @@ on the PR is what gates auto-merge.
 ## Local development
 
 ```bash
-make list                 # list all containers
-make build C=example      # build locally
-make run   C=example      # build + run
+make list                      # list all containers
+make build C=lastpass-cli      # build locally
+make run   C=lastpass-cli      # build + run
 ```
 
 By default `make` derives `OWNER` from your git user name; override it to match
-your GitHub handle: `make build C=example OWNER=your-gh-username`.
+your GitHub handle: `make build C=lastpass-cli OWNER=your-gh-username`.

@@ -1,11 +1,11 @@
 # Local helpers. These mirror what CI does, for building/testing before you push.
 #
-#   make build C=example    # build the image locally
-#   make run   C=example    # build + run it
-#   make new   C=my-tool    # scaffold a new container folder
+#   make build C=lastpass-cli    # build the image locally
+#   make run   C=lastpass-cli    # build + run it
+#   make new   C=my-tool         # scaffold a new container folder
 #
 # OWNER defaults to your lowercased git user name; override on the command line
-# (e.g. `make build C=example OWNER=jkoopmans`) to match your GitHub username.
+# (e.g. `make build C=lastpass-cli OWNER=jkoopmans`) to match your GitHub username.
 
 REGISTRY ?= ghcr.io
 OWNER    ?= $(shell git config user.name 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr ' ' '-')

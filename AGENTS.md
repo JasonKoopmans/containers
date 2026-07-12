@@ -96,13 +96,13 @@ access controls programmatically — leave that to the user.**
 ## Local development
 
 ```bash
-make list              # list containers
-make build C=example   # build locally
-make run   C=example   # build + run
+make list                   # list containers
+make build C=lastpass-cli   # build locally
+make run   C=lastpass-cli   # build + run
 ```
 
 `OWNER` defaults to the lowercased git user name; override to match GHCR:
-`make build C=example OWNER=jasonkoopmans`.
+`make build C=lastpass-cli OWNER=jasonkoopmans`.
 
 ## Environment gotchas
 
