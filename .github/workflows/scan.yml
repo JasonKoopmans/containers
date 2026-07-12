@@ -56,7 +56,7 @@ jobs:
       - uses: jdx/mise-action@v4
 
       # Auth so Trivy can pull the (possibly private) image straight from GHCR.
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
