@@ -8,6 +8,8 @@ on:
     # Ignore pushes that only touch repo-level docs/meta so we don't build for nothing.
     paths-ignore:
       - "README.md"
+      - "AGENTS.md"
+      - "CLAUDE.md"
       - ".gitignore"
       - "LICENSE"
   workflow_dispatch:
