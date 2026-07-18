@@ -31,6 +31,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
+# python:3.11-slim ships an outdated setuptools whose *vendored* copies of
+# jaraco.context and wheel carry fixable HIGH CVEs (setuptools bundles its
+# own internal copies under setuptools/_vendor/, separate from any top-level
+# wheel install) — Trivy gates on these even though nothing in this image
+# invokes setuptools directly. Upgrading past setuptools 83.0.0 pulls in
+# patched vendored copies (jaraco.context 6.1.0, wheel 0.46.3).
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=83.0.0" "wheel>=0.46.3"
+
 COPY --from=builder /install /usr/local
 
 # Copy the bundled PostToolUse capture-hook script to a stable, well-known
