@@ -1,0 +1,5 @@
+MCP server (github.com/mibayy/token-savior) providing cross-session code
+indexing and context memory for Claude Code, containerized so no Python
+toolchain is needed on the host. stdio transport only — invoke it via the
+included wrapper scripts; see the linked README for one-time setup and the
+optional containerized PostToolUse capture hook.
