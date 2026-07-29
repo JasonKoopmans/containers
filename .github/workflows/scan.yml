@@ -56,7 +56,7 @@ jobs:
       - uses: jdx/mise-action@v4
 
       # Auth so Trivy can pull the (possibly private) image straight from GHCR.
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -80,7 +80,7 @@ jobs:
       - name: Upload results
         if: always()
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy.sarif
           category: trivy-scheduled-${{ matrix.container }}

@@ -1,0 +1,17 @@
+{
+  "_comment": "Custom copy of token-savior's tool-capture PostToolUse hook, pointed at the containerized wrapper bin/tool-capture-hook.sh instead of a bare python3 invocation, so the host never needs a local token-savior/Python install. Loaded via `ts init --ts-root /agent-hooks` (see bin/token-savior-init.sh). Set TS_CAPTURE_DISABLED=1 in your shell to no-op without uninstalling.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash|WebFetch|Read|Grep|mcp__playwright__.*|mcp__token-savior__search_codebase|mcp__token-savior__get_function_source|mcp__token-savior__get_class_source",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__HOOK_COMMAND__",
+            "timeout": 8000
+          }
+        ]
+      }
+    ]
+  }
+}
