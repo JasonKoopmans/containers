@@ -9,7 +9,7 @@
 # throwaway builder stage as a hedge in case any transitive dependency lacks
 # a wheel for a given arch (e.g. linux/arm64) and falls back to compiling
 # from sdist. The final image stays slim either way.
-FROM python:3.11-slim AS builder
+FROM python:3.14-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential \
@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir --prefix=/install \
       "token-savior-recall[mcp,memory-vector]==4.4.1"
 
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 LABEL org.opencontainers.image.title="token-savior" \
       org.opencontainers.image.description="MCP server for cross-session code/context memory (token-savior)" \
