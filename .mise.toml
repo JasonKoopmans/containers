@@ -5,4 +5,4 @@
 #   mise run ...        # (nothing defined yet)
 [tools]
 trivy = "0.72.0"     # container vulnerability + config + secret scanner
-hadolint = "2.14.0"  # Dockerfile best-practice linter
+hadolint = "2.15.1"  # Dockerfile best-practice linter
