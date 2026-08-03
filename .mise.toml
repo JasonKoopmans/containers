@@ -4,5 +4,5 @@
 #   mise install        # get these locally
 #   mise run ...        # (nothing defined yet)
 [tools]
-trivy = "0.72.0"     # container vulnerability + config + secret scanner
+trivy = "0.73.0"     # container vulnerability + config + secret scanner
 hadolint = "2.14.0"  # Dockerfile best-practice linter
