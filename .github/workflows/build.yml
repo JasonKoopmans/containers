@@ -147,7 +147,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install scan tools (Trivy, hadolint)
-        uses: jdx/mise-action@v4
+        uses: jdx/mise-action@v5
 
       # Dockerfile best-practice lint. Report-only: results go to the Security
       # tab but never block a publish.
