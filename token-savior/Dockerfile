@@ -16,8 +16,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Pin to the version this container's VERSION file tracks; bump both together.
+# mcp is capped below 2: token-savior-recall 4.4.1 declares `mcp>=1.25` with no
+# upper bound, and mcp 2.x dropped the decorator API it uses (Server.list_tools),
+# so an unconstrained build installs mcp 2.x and the server crashes at startup.
+# Later token-savior-recall releases cap `mcp<2` themselves.
 RUN pip install --no-cache-dir --prefix=/install \
-      "token-savior-recall[mcp,memory-vector]==4.4.1"
+      "token-savior-recall[mcp,memory-vector]==4.4.1" \
+      "mcp<2"
 
 FROM python:3.11-slim
 
@@ -27,17 +32,18 @@ LABEL org.opencontainers.image.title="token-savior" \
       org.opencontainers.image.source="https://github.com/mibayy/token-savior"
 
 # onnxruntime (memory-vector extra) needs libgomp1 (OpenMP runtime) on Debian.
+# `apt-get upgrade` closes the gap between a Debian security fix and the python
+# base image being rebuilt with it (Trivy gates on fixable HIGH/CRITICAL).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libgomp1 \
+    && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
-# python:3.11-slim ships an outdated setuptools whose *vendored* copies of
-# jaraco.context and wheel carry fixable HIGH CVEs (setuptools bundles its
-# own internal copies under setuptools/_vendor/, separate from any top-level
-# wheel install) — Trivy gates on these even though nothing in this image
-# invokes setuptools directly. Upgrading past setuptools 83.0.0 pulls in
-# patched vendored copies (jaraco.context 6.1.0, wheel 0.46.3).
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=83.0.0" "wheel>=0.46.3"
+# Nothing at runtime needs pip/setuptools/wheel (the builder stage already
+# installed the app into /usr/local), but their *vendored* libraries (pip's
+# urllib3/msgpack, setuptools' jaraco.context/wheel) carry fixable HIGH CVEs
+# that Trivy gates on. Remove them rather than chase upstream releases.
+RUN python -m pip uninstall -y pip setuptools wheel
 
 COPY --from=builder /install /usr/local
 
